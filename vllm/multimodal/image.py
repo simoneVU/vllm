@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List, Optional, Tuple, TypeVar
+from typing import List, Optional, Tuple, TypeVar, Union
 
 import torch
 from PIL import Image
@@ -11,7 +11,7 @@ from vllm.logger import init_logger
 from vllm.transformers_utils.image_processor import get_image_processor
 from vllm.transformers_utils.tokenizer import get_tokenizer
 
-from .base import MultiModalInputs, MultiModalPlugin
+from .base import MultiModalData, MultiModalInputs, MultiModalPlugin
 
 logger = init_logger(__name__)
 
@@ -97,6 +97,47 @@ def repeat_and_pad_image_tokens(
             new_token_ids.append(token)
 
     return new_prompt, new_token_ids
+
+class ImagePixelData(MultiModalData):
+    """
+    The pixel data of an image. Can be one of:
+
+    - :class:``PIL.Image``: An image object. Requires that a HuggingFace
+      processor is available to the model.
+    - :class:``torch.Tensor``: The raw pixel data which is passed to the model
+      without additional pre-processing.
+    """
+
+    def __init__(self, image: Union[Image.Image, torch.Tensor]) -> None:
+        if isinstance(image, Image.Image):
+            # So that this class can be created inside the Image context manager
+            image.load()
+
+        self.image = image
+
+    def __repr__(self) -> str:
+        image = self.image
+        if isinstance(image, Image.Image):
+            return f"{type(self).__name__}(image={image})"
+
+        return (f"{type(self).__name__}(image=torch.Tensor(shape="
+                f"{image.shape}, dtype={image.dtype}))")
+
+class ImageFeatureData(MultiModalData):
+    """
+    The feature vector of an image, passed directly to the model.
+
+    This should be the output of the vision tower.
+    """
+
+    def __init__(self, image_features: torch.Tensor) -> None:
+        self.image_features = image_features
+
+    def __repr__(self) -> str:
+        image_features = self.image_features
+
+        return (f"{type(self).__name__}(image_features=torch.Tensor(shape="
+                f"{image_features.shape}, dtype={image_features.dtype}))")
 
 
 class ImagePlugin(MultiModalPlugin):

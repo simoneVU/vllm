@@ -9,7 +9,7 @@ import torch.types
 from PIL import Image
 from torch import nn
 
-from vllm.config import ModelConfig
+from vllm.config import ModelConfig, VisionLanguageConfig
 from vllm.inputs import InputContext
 from vllm.logger import init_logger
 
@@ -29,6 +29,33 @@ else:
 
     class _MultiModalInputsBase(UserDict[str, torch.Tensor]):
         pass
+
+
+class MultiModalData:
+    """
+    Base class that contains multi-modal data.
+
+    To add a new modality, add a new file under ``multimodal`` directory.
+
+    In this new file, subclass :class:`~MultiModalData` and
+    :class:`~MultiModalPlugin`.
+
+    Finally, register the new plugin to
+    :const:`vllm.multimodal.MULTIMODAL_REGISTRY`.
+    This enables models to call :meth:`MultiModalRegistry.register_input` for
+    the new modality.
+    """
+    pass
+
+
+D = TypeVar("D", bound=MultiModalData)
+N = TypeVar("N", bound=Type["nn.Module"])
+
+MultiModalInputProcessor = Callable[[D, ModelConfig, VisionLanguageConfig],
+                                    Dict[str, "torch.Tensor"]]
+"""Return a dictionary to be passed as keyword arguments to
+:meth:`torch.nn.Module.forward`. This is similar in concept to tokenizers
+and processors in HuggingFace Transformers."""
 
 
 class MultiModalInputs(_MultiModalInputsBase):
